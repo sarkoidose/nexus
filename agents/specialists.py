@@ -1,14 +1,27 @@
 """
 NEXUS - Agents Spécialisés
 FUNDAMENTUM | MACRO | TECHNICUS | SENTINEL
+Prompts in English for maximum analytical precision.
+Output in French for TUI display.
 """
 
 import sys
 import os
+from datetime import datetime
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from core.base_agent import BaseAgent, AgentReport
 from config.settings import AGENTS
+
+
+def _err(agent, e):
+    return AgentReport(
+        agent_name=agent.name,
+        agent_role=agent.role,
+        timestamp=datetime.now().isoformat(),
+        analysis="", key_points=[],
+        score=0, confidence=0, error=str(e),
+    )
 
 
 class FundamentumAgent(BaseAgent):
@@ -17,46 +30,46 @@ class FundamentumAgent(BaseAgent):
         super().__init__(AGENTS["fundamentum"])
 
     def analyze(self, asset: str, context: dict) -> AgentReport:
-        snapshot_summary = context.get("snapshot_summary", f"Actif: {asset}")
-        asset_class = context.get("asset_class", "equity")
+        snapshot_summary = context.get("snapshot_summary", f"Asset: {asset}")
+        asset_class      = context.get("asset_class", "equity")
 
         if asset_class == "crypto":
-            prompt = f"""
-{snapshot_summary}
+            prompt = f"""{snapshot_summary}
 
-Analyse fondamentale CRYPTO :
-- Tokenomique (offre max, inflation/deflation, distribution)
-- Adoption réseau : adresses actives, TVL si DeFi, volume on-chain
-- Utilité du protocole et avantage compétitif
-- Équipe, VC backing, roadmap
-- Valorisation relative vs pairs (market cap / TVL si applicable)
-- Verdict : sous-évalué / juste / surévalué
-- Score directionnel : -100 à +100
-"""
+Perform a deep fundamental analysis for this CRYPTO asset:
+- Tokenomics: max supply, inflation/deflation mechanics, distribution
+- Network adoption: active addresses, TVL (if DeFi), on-chain volume
+- Protocol utility and competitive moat
+- Team, VC backing, roadmap milestones
+- Relative valuation vs peers (market cap / TVL ratio if applicable)
+- Verdict: undervalued / fair value / overvalued with justification
+- Directional score from -100 (very bearish) to +100 (very bullish)
+
+Be quantitative. Write your response in French using bullet points starting with "-".
+Conclude with a clear bias: haussier, baissier, or neutre."""
         else:
-            prompt = f"""
-{snapshot_summary}
+            prompt = f"""{snapshot_summary}
 
-Analyse fondamentale :
-- Valorisation : P/E, P/B, EV/EBITDA vs secteur et historique
-- Bilan : endettement, liquidité, FCF
-- Profitabilité : ROE, ROIC, marges
-- Croissance du CA et des bénéfices
-- Position compétitive (moat)
-- Valorisation intrinsèque estimée
-- Verdict : sous-évalué / juste / surévalué
-- Score directionnel : -100 à +100
-"""
+Perform a deep fundamental analysis:
+- Valuation metrics: P/E, P/B, EV/EBITDA vs sector peers and historical average
+- Balance sheet quality: debt levels, liquidity, FCF generation
+- Profitability: ROE, ROIC, net margins
+- Revenue and earnings growth dynamics
+- Competitive position and economic moat
+- Estimated intrinsic value (simplified DCF or target multiple)
+- Analyst consensus: if available, how does it align with fundamentals?
+- Verdict: undervalued / fair / overvalued
+
+Write your response in French using bullet points starting with "-".
+Conclude with a clear directional bias: haussier, baissier, or neutre.
+Directional score: -100 (very bearish) to +100 (very bullish)."""
+
         try:
-            text = self._llm_call(prompt)
-            return self._build_report(text, {"asset_class": asset_class})
+            text   = self._llm_call(prompt)
+            report = self._build_report(text, {"asset_class": asset_class})
+            return report
         except Exception as e:
-            from datetime import datetime
-            return AgentReport(
-                agent_name=self.name, agent_role=self.role,
-                timestamp=datetime.now().isoformat(),
-                analysis="", key_points=[], score=0, confidence=0, error=str(e),
-            )
+            return _err(self, e)
 
 
 class MacroAgent(BaseAgent):
@@ -65,34 +78,33 @@ class MacroAgent(BaseAgent):
         super().__init__(AGENTS["macro"])
 
     def analyze(self, asset: str, context: dict) -> AgentReport:
-        snapshot_summary = context.get("snapshot_summary", f"Actif: {asset}")
+        snapshot_summary = context.get("snapshot_summary", f"Asset: {asset}")
         sector  = context.get("sector", "")
         country = context.get("country", "")
 
-        prompt = f"""
-{snapshot_summary}
-Secteur: {sector or 'Non précisé'} | Pays: {country or 'Non précisé'}
+        prompt = f"""{snapshot_summary}
+Sector: {sector or 'Unknown'} | Country: {country or 'Unknown'}
 
-Analyse macroéconomique :
-- Environnement de taux : Fed/BCE, courbe des taux, impact sur l'actif
-- Inflation et pouvoir de fixation des prix
-- Cycle économique actuel et position dans le cycle
-- Dollar index (DXY) et implications
-- Risques géopolitiques spécifiques
-- Flux de capitaux : risk-on vs risk-off
-- Catalyseurs macro favorables et défavorables (3-12 mois)
-- Score directionnel : -100 à +100
-"""
+Perform a macroeconomic and geopolitical analysis:
+- Rate environment: Fed/ECB/BOJ policy, yield curve shape, impact on this asset
+- Inflation dynamics and pricing power of the company
+- Current economic cycle (expansion/contraction/late cycle) and its implications
+- Dollar index (DXY) and implications (especially for commodities and EM assets)
+- Geopolitical risks specific to the sector or country
+- Capital flows: risk-on vs risk-off, sector rotation trends
+- Favorable and unfavorable macro catalysts over 3-12 months
+- If analyst consensus is available in the data, factor it into the macro outlook
+
+Write your response in French using bullet points starting with "-".
+Distinguish short term (1-3 months) and medium term (6-12 months).
+Conclude with a clear directional bias: haussier, baissier, or neutre.
+Macro directional score: -100 to +100."""
+
         try:
             text = self._llm_call(prompt)
             return self._build_report(text, {"sector": sector, "country": country})
         except Exception as e:
-            from datetime import datetime
-            return AgentReport(
-                agent_name=self.name, agent_role=self.role,
-                timestamp=datetime.now().isoformat(),
-                analysis="", key_points=[], score=0, confidence=0, error=str(e),
-            )
+            return _err(self, e)
 
 
 class TechnicusAgent(BaseAgent):
@@ -101,35 +113,33 @@ class TechnicusAgent(BaseAgent):
         super().__init__(AGENTS["technicus"])
 
     def analyze(self, asset: str, context: dict) -> AgentReport:
-        snapshot_summary = context.get("snapshot_summary", f"Actif: {asset}")
+        snapshot_summary = context.get("snapshot_summary", f"Asset: {asset}")
 
-        prompt = f"""
-{snapshot_summary}
+        prompt = f"""{snapshot_summary}
 
-Analyse technique :
-- Structure de tendance : HH/HL (uptrend) ou LL/LH (downtrend) ?
-- Position vs moyennes mobiles SMA 20/50/200 : golden/death cross ?
-- Momentum : RSI (suracheté >70 / survendu <30), MACD
-- Supports clés et résistances majeures (niveaux chiffrés)
-- Configuration chartiste identifiée
-- Volume : confirme-t-il la tendance ?
-- Setup :
-  * Entrée optimale
-  * Stop-loss (niveau et % de risque)
-  * Objectif 1 et Objectif 2
-  * Ratio risque/rendement
-- Score directionnel : -100 à +100
-"""
+Perform a complete technical analysis:
+- Trend structure: HH/HL (uptrend) or LL/LH (downtrend)? Daily timeframe.
+- Position vs moving averages (SMA 20/50/200): golden cross / death cross?
+- Momentum: RSI (overbought >70 / oversold <30), MACD signal
+- Key support and resistance levels (exact price levels)
+- Chart pattern identified (if any)
+- Volume: does it confirm the trend?
+- Trading setup:
+  * Optimal entry price
+  * Stop-loss level and risk percentage
+  * Target 1 and Target 2
+  * Risk/reward ratio
+- Directional bias: -100 (very bearish) to +100 (very bullish)
+
+Write your response in French using bullet points starting with "-".
+Be precise with exact price levels.
+Conclude with a clear bias: haussier, baissier, or neutre."""
+
         try:
             text = self._llm_call(prompt)
             return self._build_report(text, {})
         except Exception as e:
-            from datetime import datetime
-            return AgentReport(
-                agent_name=self.name, agent_role=self.role,
-                timestamp=datetime.now().isoformat(),
-                analysis="", key_points=[], score=0, confidence=0, error=str(e),
-            )
+            return _err(self, e)
 
 
 class SentinelAgent(BaseAgent):
@@ -138,45 +148,45 @@ class SentinelAgent(BaseAgent):
         super().__init__(AGENTS["sentinel"])
 
     def analyze(self, asset: str, context: dict) -> AgentReport:
-        snapshot_summary = context.get("snapshot_summary", f"Actif: {asset}")
+        snapshot_summary = context.get("snapshot_summary", f"Asset: {asset}")
         vol_30d = context.get("volatility_30d")
         price   = context.get("price", 0)
-        vol_info = f"Volatilité annualisée 30j: {vol_30d:.1%}" if vol_30d else "Volatilité: non disponible"
 
-        prompt = f"""
-{snapshot_summary}
-{vol_info} | Prix: {price}
+        vol_info = f"30d annualized volatility: {vol_30d:.1%}" if vol_30d else "Volatility: unavailable"
 
-Analyse de risques (style Taleb) :
+        prompt = f"""{snapshot_summary}
+{vol_info}
+Current price: {price}
 
-1. RISQUES QUANTIFIABLES
-- VaR journalière 95% et 99%
-- Drawdown maximum probable
-- Beta estimé vs marché global
+Perform an exhaustive risk analysis (Nassim Taleb style):
 
-2. RISQUES DE QUEUE
-- Événements à faible probabilité / fort impact négatif
-- Fragilités systémiques cachées
-- Asymétries défavorables non pricées
+1. QUANTIFIABLE RISKS
+- Daily VaR 95% and 99% (estimate based on volatility)
+- Maximum probable drawdown (realistic worst case)
+- Estimated beta vs global market
+- Correlation with other major assets (BTC, S&P500, gold)
 
-3. SIZING
-- % du portefeuille recommandé (Kelly partiel 25%)
-- Pour 10 000€ : montant maximum
-- Stop-loss psychologique vs technique
+2. TAIL RISKS (BLACK SWANS)
+- Low-probability / high-impact negative events specific to this asset
+- Hidden systemic fragilities
+- Unfavorable asymmetries not yet priced in
 
-4. CONDITIONS D'INVALIDATION
-- Événements qui invalideraient la thèse haussière
-- Niveaux de prix critiques
+3. POSITION SIZING
+- Optimal sizing (% of portfolio) using partial Kelly (25%)
+- For a 10,000€ portfolio: maximum recommended amount
+- Psychological stop-loss vs technical stop-loss
 
-Score de risque : 0 à 100. Score directionnel : -100 à +100.
-"""
+4. INVALIDATION CONDITIONS
+- What events would completely invalidate the bullish thesis?
+- Critical price levels to monitor
+
+Write your response in French using bullet points starting with "-".
+Risk score: 0 (minimal risk) to 100 (extreme risk).
+Directional score: -100 to +100.
+Conclude with: risque faible, modéré, élevé, or extrême."""
+
         try:
             text = self._llm_call(prompt)
             return self._build_report(text, {"volatility_30d": vol_30d})
         except Exception as e:
-            from datetime import datetime
-            return AgentReport(
-                agent_name=self.name, agent_role=self.role,
-                timestamp=datetime.now().isoformat(),
-                analysis="", key_points=[], score=0, confidence=0, error=str(e),
-            )
+            return _err(self, e)

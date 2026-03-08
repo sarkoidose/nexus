@@ -1,6 +1,6 @@
 """
 NEXUS - APEX : Orchestrateur & Décideur Final
-100% LOCAL — qwen3.5:9b via Ollama
+100% LOCAL — qwen3.5:35b-a3b via Ollama
 """
 import json
 import sys
@@ -69,14 +69,21 @@ class ApexAgent(BaseAgent):
             agent_scores[agent_name] = {"score": report.score, "confidence": report.confidence}
 
         prompt = (
-            "Tu es APEX, orchestrateur financier.\n\n"
-            "DONNEES MARCHE:\n"
+            "You are APEX, elite financial orchestrator. Think in English, output JSON with French string values.\n\n"
+            "MARKET DATA:\n"
             f"{snapshot_summary}\n\n"
-            "RAPPORTS AGENTS:\n"
+            "AGENT REPORTS:\n"
             f"{reports_text}\n\n"
-            "REGLE ABSOLUE: Ta reponse doit etre UNIQUEMENT du JSON valide.\n"
-            "Pas de texte avant. Pas de texte apres. Pas de markdown.\n"
-            "Commence par { et termine par }.\n\n"
+            "WEIGHTING RULES (medium-term horizon):\n"
+            "- FUNDAMENTUM (fundamentals): weight 0.40 — most important for MT\n"
+            "- MACRO (macroeconomics): weight 0.30 — second most important\n"
+            "- TECHNICUS (technical): weight 0.20 — entry/exit timing only\n"
+            "- SENTINEL (risk): weight 0.10 — position sizing only, NOT a directional signal\n\n"
+            "CRITICAL: If analyst consensus is available in market data, it must significantly influence your recommendation.\n"
+            "A 'Strong Buy' consensus from 30+ analysts targeting +40% upside should push toward BUY or ACCUMULATE.\n"
+            "SENTINEL's risk score should NOT override a strong fundamental + macro + analyst consensus.\n\n"
+            "ABSOLUTE RULE: Respond ONLY with valid JSON. Zero text before or after. Start with { end with }.\n"
+            "All string values (synthesis, risks, catalysts, apex_reasoning) must be in French.\n\n"
             "{\n"
             '  "recommendation": "HOLD",\n'
             '  "conviction": 50,\n'
@@ -85,10 +92,10 @@ class ApexAgent(BaseAgent):
             '  "stop_loss": null,\n'
             '  "target_price": null,\n'
             '  "position_size_pct": 2.0,\n'
-            '  "synthesis": "synthese ici",\n'
+            '  "synthesis": "synthese en francais",\n'
             '  "risks": ["risque1", "risque2"],\n'
-            '  "catalysts": ["catalyseur1"],\n'
-            '  "apex_reasoning": "raisonnement ici"\n'
+            '  "catalysts": ["catalyseur1", "catalyseur2"],\n'
+            '  "apex_reasoning": "raisonnement en francais"\n'
             "}"
         )
 
@@ -104,7 +111,7 @@ class ApexAgent(BaseAgent):
                     "options": {
                         "num_predict": 1024,
                         "temperature": 0.1,
-                        "num_ctx": 4096,
+                        "num_ctx": 8192,
                     }
                 },
                 timeout=600.0,

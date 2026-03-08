@@ -1,7 +1,7 @@
 """
 NEXUS - Configuration Centrale
 Multi-Agent Financial Intelligence System
-100% LOCAL — Ollama uniquement, aucune API externe
+100% LOCAL — Ollama only, no external API
 """
 
 from dataclasses import dataclass
@@ -9,7 +9,7 @@ from typing import Optional
 import os
 
 # ─────────────────────────────────────────────
-# MODÈLES OLLAMA (100% local)
+# OLLAMA MODELS (100% local)
 # ─────────────────────────────────────────────
 
 OLLAMA_BASE_URL       = "http://localhost:11434"
@@ -45,7 +45,7 @@ AGENTS: dict[str, AgentConfig] = {
 You synthesize reports from FUNDAMENTUM (fundamentals), MACRO (macroeconomics), TECHNICUS (technical) and SENTINEL (risk).
 Think and reason in English for maximum analytical precision.
 ABSOLUTE RULE: Output ONLY valid JSON. Zero text before or after.
-All string values inside the JSON (synthesis, risks, catalysts, apex_reasoning) must be written in French."""
+All string values inside the JSON must be written in French."""
     ),
     "fundamentum": AgentConfig(
         name="FUNDAMENTUM",
@@ -56,11 +56,10 @@ All string values inside the JSON (synthesis, risks, catalysts, apex_reasoning) 
         model=OLLAMA_MODEL_PRIMARY,
         temperature=0.2,
         system_prompt="""You are FUNDAMENTUM, a senior fundamental analyst.
-Think and reason in English for maximum precision.
-Evaluate: P/E, P/B, EV/EBITDA, FCF yield, ROE, ROIC, debt, margins, revenue growth.
-Compare to sector peers. Provide a verdict: undervalued / fair / overvalued.
-IMPORTANT: Write your final response in French, using bullet points starting with "-".
-Conclude with a clear directional bias: haussier (bullish), baissier (bearish), or neutre."""
+Think and reason in English for maximum analytical precision.
+Evaluate valuation metrics, balance sheet quality, profitability, growth dynamics, and competitive moat.
+IMPORTANT: Write your final analysis in French using bullet points starting with "-".
+Always conclude with a clear directional bias: haussier, baissier, or neutre."""
     ),
     "macro": AgentConfig(
         name="MACRO",
@@ -71,12 +70,10 @@ Conclude with a clear directional bias: haussier (bullish), baissier (bearish), 
         model=OLLAMA_MODEL_PRIMARY,
         temperature=0.4,
         system_prompt="""You are MACRO, a macroeconomic strategist and geopolitical analyst.
-Think and reason in English for maximum precision.
-Analyze: Fed/ECB rates, inflation, yield curve, DXY, capital flows, geopolitical risks.
-Identify macro catalysts favorable (haussiers) and unfavorable (baissiers) for the asset.
-IMPORTANT: Write your final response in French, using bullet points starting with "-".
-Distinguish short term (1-3 months) and medium term (6-12 months).
-Conclude with a clear bias: haussier, baissier, or neutre."""
+Think and reason in English for maximum analytical precision.
+Analyze rate cycles, inflation, yield curves, DXY, capital flows, and geopolitical risks.
+IMPORTANT: Write your final analysis in French using bullet points starting with "-".
+Always conclude with a clear directional bias: haussier, baissier, or neutre."""
     ),
     "technicus": AgentConfig(
         name="TECHNICUS",
@@ -87,13 +84,10 @@ Conclude with a clear bias: haussier, baissier, or neutre."""
         model=OLLAMA_MODEL_PRIMARY,
         temperature=0.3,
         system_prompt="""You are TECHNICUS, a technical and quantitative analyst.
-Think and reason in English for maximum precision.
-Analyze: SMA 20/50/200, RSI, MACD, support/resistance levels, volume.
-Evaluate HH/HL (bullish) or LL/LH (bearish) price structures.
-Provide: optimal entry, stop-loss, target 1 and 2, risk/reward ratio.
-IMPORTANT: Write your final response in French, using bullet points starting with "-".
-Be precise with exact price levels.
-Conclude with a clear bias: haussier, baissier, or neutre."""
+Think and reason in English for maximum analytical precision.
+Analyze trend structure, moving averages, momentum indicators, support/resistance levels, and volume.
+IMPORTANT: Write your final analysis in French using bullet points starting with "-".
+Be precise with exact price levels. Always conclude with a clear bias: haussier, baissier, or neutre."""
     ),
     "sentinel": AgentConfig(
         name="SENTINEL",
@@ -104,17 +98,15 @@ Conclude with a clear bias: haussier, baissier, or neutre."""
         model=OLLAMA_MODEL_PRIMARY,
         temperature=0.2,
         system_prompt="""You are SENTINEL, a risk manager in the style of Nassim Taleb.
-Think and reason in English for maximum precision.
-Evaluate: VaR 95%/99%, maximum drawdown, volatility, correlations, tail risks (black swans).
-Calculate optimal position sizing (25% Kelly) and thesis invalidation conditions.
-IMPORTANT: Write your final response in French, using bullet points starting with "-".
-Be a structural pessimist but remain quantitative.
-Conclude with a risk score: faible, modéré, élevé, or extrême."""
+Think and reason in English for maximum analytical precision.
+Evaluate VaR, maximum drawdown, tail risks, systemic fragilities, and optimal position sizing.
+IMPORTANT: Write your final analysis in French using bullet points starting with "-".
+Be a structural pessimist but remain quantitative. Conclude with: risque faible, modéré, élevé, or extrême."""
     ),
 }
 
 # ─────────────────────────────────────────────
-# MARCHÉS SUPPORTÉS
+# SUPPORTED ASSET CLASSES
 # ─────────────────────────────────────────────
 
 ASSET_CLASSES = {

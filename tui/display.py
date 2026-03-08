@@ -93,7 +93,14 @@ def render_market_snapshot(snapshot) -> Panel:
                            style="green" if above else "red")
     if snapshot.week_52_high:
         pct_from_high = (snapshot.price / snapshot.week_52_high - 1) * 100
-        right_lines.append(f"52s Max : {snapshot.week_52_high:.2f} ({pct_from_high:+.1f}%)")
+        right_lines.append(f"52s Max : {snapshot.week_52_high:.2f} ({pct_from_high:+.1f}%)\n")
+    if getattr(snapshot, "analyst_target_mean", None):
+        upside = getattr(snapshot, "analyst_upside_pct", None) or 0
+        rec    = getattr(snapshot, "analyst_recommendation", "?")
+        cnt    = getattr(snapshot, "analyst_count", "?")
+        color  = "green" if upside > 0 else "red"
+        right_lines.append(f"Analystes: {rec} ({cnt})\n", style=f"bold {color}")
+        right_lines.append(f"Objectif : ${snapshot.analyst_target_mean:.2f} ({upside:+.1f}%)", style=color)
 
     grid.add_row(left_lines, right_lines)
 
