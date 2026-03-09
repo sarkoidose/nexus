@@ -39,3 +39,4 @@ Thumbs.db
 outputs/
 data/
 *.log
+.claude/settings.local.json
