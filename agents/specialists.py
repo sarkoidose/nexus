@@ -1,8 +1,7 @@
 """
-NEXUS - Agents Spécialisés
+NEXUS - Specialized Agents
 FUNDAMENTUM | MACRO | TECHNICUS | SENTINEL
-Prompts in English for maximum analytical precision.
-Output in French for TUI display.
+100% English prompts — translation happens in the TUI layer.
 """
 
 import sys
@@ -16,11 +15,9 @@ from config.settings import AGENTS
 
 def _err(agent, e):
     return AgentReport(
-        agent_name=agent.name,
-        agent_role=agent.role,
+        agent_name=agent.name, agent_role=agent.role,
         timestamp=datetime.now().isoformat(),
-        analysis="", key_points=[],
-        score=0, confidence=0, error=str(e),
+        analysis="", key_points=[], score=0, confidence=0, error=str(e),
     )
 
 
@@ -37,37 +34,34 @@ class FundamentumAgent(BaseAgent):
             prompt = f"""{snapshot_summary}
 
 Perform a deep fundamental analysis for this CRYPTO asset:
-- Tokenomics: max supply, inflation/deflation mechanics, distribution
-- Network adoption: active addresses, TVL (if DeFi), on-chain volume
-- Protocol utility and competitive moat
-- Team, VC backing, roadmap milestones
+- Tokenomics: max supply, inflation/deflation mechanics, token distribution
+- Network adoption: active addresses, TVL (if DeFi), on-chain volume trends
+- Protocol utility and competitive moat vs peers
+- Team credibility, VC backing, roadmap execution
 - Relative valuation vs peers (market cap / TVL ratio if applicable)
-- Verdict: undervalued / fair value / overvalued with justification
+- Verdict: undervalued / fair value / overvalued — with quantitative justification
 - Directional score from -100 (very bearish) to +100 (very bullish)
 
-Be quantitative. Write your response in French using bullet points starting with "-".
-Conclude with a clear bias: haussier, baissier, or neutre."""
+Use bullet points starting with "-". Be quantitative.
+End with: "Bias: bullish / bearish / neutral" and "Score: [number]"."""
         else:
             prompt = f"""{snapshot_summary}
 
 Perform a deep fundamental analysis:
-- Valuation metrics: P/E, P/B, EV/EBITDA vs sector peers and historical average
-- Balance sheet quality: debt levels, liquidity, FCF generation
-- Profitability: ROE, ROIC, net margins
-- Revenue and earnings growth dynamics
-- Competitive position and economic moat
-- Estimated intrinsic value (simplified DCF or target multiple)
-- Analyst consensus: if available, how does it align with fundamentals?
-- Verdict: undervalued / fair / overvalued
+- Valuation metrics: P/E, P/B, EV/EBITDA vs sector peers and 5yr historical average
+- Balance sheet quality: net debt, liquidity ratios, free cash flow generation
+- Profitability: ROE, ROIC, net margins — trend and sustainability
+- Revenue and earnings growth dynamics (last 3 years + guidance)
+- Competitive position: economic moat, pricing power, market share
+- Estimated intrinsic value using simplified DCF or target multiple
+- Analyst consensus: alignment or divergence with fundamental picture
 
-Write your response in French using bullet points starting with "-".
-Conclude with a clear directional bias: haussier, baissier, or neutre.
-Directional score: -100 (very bearish) to +100 (very bullish)."""
+Use bullet points starting with "-". Be quantitative and precise.
+End with: "Bias: bullish / bearish / neutral" and "Score: [number between -100 and +100]"."""
 
         try:
-            text   = self._llm_call(prompt)
-            report = self._build_report(text, {"asset_class": asset_class})
-            return report
+            text = self._llm_call(prompt)
+            return self._build_report(text, {"asset_class": asset_class}, context=context)
         except Exception as e:
             return _err(self, e)
 
@@ -81,28 +75,33 @@ class MacroAgent(BaseAgent):
         snapshot_summary = context.get("snapshot_summary", f"Asset: {asset}")
         sector  = context.get("sector", "")
         country = context.get("country", "")
+        news    = context.get("recent_news", [])
+
+        news_block = ""
+        if news:
+            headlines = "\n".join(f"  - {h}" for h in news[:5])
+            news_block = f"\nRECENT NEWS (incorporate into macro assessment if relevant):\n{headlines}\n"
 
         prompt = f"""{snapshot_summary}
 Sector: {sector or 'Unknown'} | Country: {country or 'Unknown'}
-
+{news_block}
 Perform a macroeconomic and geopolitical analysis:
-- Rate environment: Fed/ECB/BOJ policy, yield curve shape, impact on this asset
-- Inflation dynamics and pricing power of the company
-- Current economic cycle (expansion/contraction/late cycle) and its implications
-- Dollar index (DXY) and implications (especially for commodities and EM assets)
-- Geopolitical risks specific to the sector or country
-- Capital flows: risk-on vs risk-off, sector rotation trends
-- Favorable and unfavorable macro catalysts over 3-12 months
-- If analyst consensus is available in the data, factor it into the macro outlook
+- Rate environment: Fed/ECB/BOJ policy stance, yield curve shape, impact on this asset class
+- Inflation dynamics: current trajectory, company pricing power relative to input costs
+- Economic cycle positioning: expansion / late cycle / contraction — implications for sector
+- Dollar index (DXY): directional bias and sector-specific implications
+- Geopolitical risks: export restrictions, sanctions, supply chain fragility
+- Capital flows: risk-on vs risk-off regime, sector rotation signals
+- Recent news: if relevant above, integrate into the macro picture
+- Catalysts (favorable and unfavorable) over 3 to 12 months
 
-Write your response in French using bullet points starting with "-".
-Distinguish short term (1-3 months) and medium term (6-12 months).
-Conclude with a clear directional bias: haussier, baissier, or neutre.
-Macro directional score: -100 to +100."""
+Use bullet points starting with "-".
+Distinguish short term (1–3 months) vs medium term (6–12 months).
+End with: "Bias: bullish / bearish / neutral" and "Score: [number between -100 and +100]"."""
 
         try:
             text = self._llm_call(prompt)
-            return self._build_report(text, {"sector": sector, "country": country})
+            return self._build_report(text, {"sector": sector, "country": country}, context=context)
         except Exception as e:
             return _err(self, e)
 
@@ -117,27 +116,29 @@ class TechnicusAgent(BaseAgent):
 
         prompt = f"""{snapshot_summary}
 
-Perform a complete technical analysis:
-- Trend structure: HH/HL (uptrend) or LL/LH (downtrend)? Daily timeframe.
-- Position vs moving averages (SMA 20/50/200): golden cross / death cross?
-- Momentum: RSI (overbought >70 / oversold <30), MACD signal
-- Key support and resistance levels (exact price levels)
-- Chart pattern identified (if any)
-- Volume: does it confirm the trend?
+Perform a complete technical analysis on the daily timeframe:
+- Trend structure: higher highs / higher lows (uptrend) or lower lows / lower highs (downtrend)?
+- Moving averages: price position vs SMA20 / SMA50 / SMA200 — golden cross or death cross?
+- Momentum: RSI(14) reading and zone (overbought >70 / oversold <30), MACD signal line crossover
+- Key support levels: exact price levels with brief justification
+- Key resistance levels: exact price levels with brief justification
+- Chart pattern: identify if any (head & shoulders, double bottom, flag, wedge...)
+- Volume analysis: does volume confirm the price trend?
 - Trading setup:
-  * Optimal entry price
-  * Stop-loss level and risk percentage
-  * Target 1 and Target 2
+  * Optimal entry price (current or on pullback)
+  * Stop-loss level (price and % risk)
+  * Target 1 and Target 2 (price levels)
   * Risk/reward ratio
-- Directional bias: -100 (very bearish) to +100 (very bullish)
 
-Write your response in French using bullet points starting with "-".
-Be precise with exact price levels.
-Conclude with a clear bias: haussier, baissier, or neutre."""
+Use bullet points starting with "-". Use exact price levels.
+End with: "Bias: bullish / bearish / neutral" and "Score: [number between -100 and +100]"."""
 
         try:
             text = self._llm_call(prompt)
-            return self._build_report(text, {})
+            return self._build_report(
+                text, raw_data={}, context=context,
+                use_technical_score=True,
+            )
         except Exception as e:
             return _err(self, e)
 
@@ -152,41 +153,39 @@ class SentinelAgent(BaseAgent):
         vol_30d = context.get("volatility_30d")
         price   = context.get("price", 0)
 
-        vol_info = f"30d annualized volatility: {vol_30d:.1%}" if vol_30d else "Volatility: unavailable"
+        vol_info = f"30-day annualized volatility: {vol_30d:.1%}" if vol_30d else "Volatility: unavailable"
 
         prompt = f"""{snapshot_summary}
 {vol_info}
 Current price: {price}
 
-Perform an exhaustive risk analysis (Nassim Taleb style):
+Perform an exhaustive risk analysis in the style of Nassim Taleb:
 
 1. QUANTIFIABLE RISKS
-- Daily VaR 95% and 99% (estimate based on volatility)
-- Maximum probable drawdown (realistic worst case)
-- Estimated beta vs global market
-- Correlation with other major assets (BTC, S&P500, gold)
+- Daily VaR at 95% and 99% confidence (estimate from annualized volatility)
+- Maximum probable drawdown: realistic worst-case scenario with historical precedent
+- Estimated beta vs global equity market (S&P 500)
+- Correlation with BTC, S&P 500, gold — and implications for portfolio diversification
 
 2. TAIL RISKS (BLACK SWANS)
 - Low-probability / high-impact negative events specific to this asset
-- Hidden systemic fragilities
-- Unfavorable asymmetries not yet priced in
+- Hidden systemic fragilities not reflected in current price
+- Unfavorable asymmetries: scenarios where downside >> upside
 
 3. POSITION SIZING
-- Optimal sizing (% of portfolio) using partial Kelly (25%)
-- For a 10,000€ portfolio: maximum recommended amount
-- Psychological stop-loss vs technical stop-loss
+- Optimal allocation (% of portfolio) using partial Kelly criterion (25% fraction)
+- For a 10,000€ portfolio: maximum recommended position size in euros
+- Psychological stop-loss vs hard technical stop-loss — distinction and rationale
 
 4. INVALIDATION CONDITIONS
-- What events would completely invalidate the bullish thesis?
-- Critical price levels to monitor
+- What events or price levels would completely invalidate the bullish thesis?
+- Critical price levels to monitor as invalidation triggers
 
-Write your response in French using bullet points starting with "-".
-Risk score: 0 (minimal risk) to 100 (extreme risk).
-Directional score: -100 to +100.
-Conclude with: risque faible, modéré, élevé, or extrême."""
+Use bullet points starting with "-". Be quantitative.
+End with: "Risk level: low / moderate / high / extreme" and "Score: [number between -100 and +100]"."""
 
         try:
             text = self._llm_call(prompt)
-            return self._build_report(text, {"volatility_30d": vol_30d})
+            return self._build_report(text, {"volatility_30d": vol_30d}, context=context)
         except Exception as e:
             return _err(self, e)

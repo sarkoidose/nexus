@@ -25,6 +25,108 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 console = Console()
 
 # ─────────────────────────────────────────────
+# COUCHE DE TRADUCTION  (anglais LLM → français TUI)
+# ─────────────────────────────────────────────
+
+_TRANSLATIONS: dict[str, str] = {
+    # Biais directionnels
+    "bullish":          "haussier",
+    "bearish":          "baissier",
+    "neutral":          "neutre",
+    "strongly bullish": "fortement haussier",
+    "strongly bearish": "fortement baissier",
+    "mildly bullish":   "légèrement haussier",
+    "mildly bearish":   "légèrement baissier",
+    # Niveaux de risque
+    "low":      "faible",
+    "moderate": "modéré",
+    "high":     "élevé",
+    "extreme":  "extrême",
+    "risk level: low":      "Niveau de risque : faible",
+    "risk level: moderate": "Niveau de risque : modéré",
+    "risk level: high":     "Niveau de risque : élevé",
+    "risk level: extreme":  "Niveau de risque : extrême",
+    # Actions APEX
+    "buy":               "Acheter",
+    "strong buy":        "Achat fort",
+    "accumulate":        "Accumuler",
+    "hold":              "Conserver",
+    "reduce":            "Alléger",
+    "sell":              "Vendre",
+    "strong sell":       "Vente forte",
+    "avoid":             "Éviter",
+    # Termes techniques courants
+    "overbought":        "suracheté",
+    "oversold":          "survendu",
+    "uptrend":           "tendance haussière",
+    "downtrend":         "tendance baissière",
+    "support":           "support",
+    "resistance":        "résistance",
+    "golden cross":      "golden cross",
+    "death cross":       "death cross",
+    "breakout":          "cassure haussière",
+    "breakdown":         "cassure baissière",
+    "risk/reward":       "risque/rendement",
+    "stop-loss":         "stop-loss",
+    "target":            "objectif",
+    "entry":             "entrée",
+    # Macro
+    "soft landing":      "atterrissage en douceur",
+    "hard landing":      "atterrissage brutal",
+    "stagflation":       "stagflation",
+    "recession":         "récession",
+    "expansion":         "expansion",
+    "rate cut":          "baisse de taux",
+    "rate hike":         "hausse de taux",
+    "tightening":        "resserrement monétaire",
+    "easing":            "assouplissement monétaire",
+    "risk-on":           "risk-on",
+    "risk-off":          "risk-off",
+    # Fondamentaux
+    "undervalued":       "sous-évalué",
+    "overvalued":        "surévalué",
+    "fair value":        "juste valeur",
+    "free cash flow":    "flux de trésorerie libre",
+    "earnings":          "bénéfices",
+    "revenue":           "chiffre d'affaires",
+    "guidance":          "perspectives",
+    "moat":              "avantage compétitif",
+    "buyback":           "rachat d'actions",
+    # Crypto
+    "staking":           "staking",
+    "tokenomics":        "tokenomique",
+    "liquidity":         "liquidité",
+}
+
+def translate(text: str) -> str:
+    """
+    Traduit un texte anglais en français pour affichage TUI.
+    Remplace les termes connus mot à mot (insensible à la casse).
+    Préserve la ponctuation et la capitalisation de début de phrase.
+    """
+    if not text:
+        return text
+    result = text
+    # Trier par longueur décroissante pour éviter les remplacements partiels
+    for en, fr in sorted(_TRANSLATIONS.items(), key=lambda x: -len(x[0])):
+        # Remplacement insensible à la casse
+        import re
+        pattern = re.compile(re.escape(en), re.IGNORECASE)
+        def _replace(m):
+            original = m.group(0)
+            if original[0].isupper():
+                return fr.capitalize()
+            return fr
+        result = pattern.sub(_replace, result)
+    return result
+
+
+def translate_bullet_points(text: str) -> str:
+    """Traduit chaque ligne d'un texte multi-lignes."""
+    return "\n".join(translate(line) for line in text.split("\n"))
+
+
+# ─────────────────────────────────────────────
 # PALETTE NEXUS
 # ─────────────────────────────────────────────
 NEXUS_GOLD  = "bold yellow"
@@ -147,8 +249,7 @@ def render_agent_report(report, expanded: bool = False) -> Panel:
     if report.key_points:
         content.append("Points clés :\n", style="bold")
         for kp in report.key_points[:3]:
-            # Nettoyer le markdown résiduel (**)
-            clean = kp.replace("**", "").replace("*", "").strip()
+            clean = translate(kp.replace("**", "").replace("*", "").strip())
             if clean:
                 content.append(f"  → {clean[:120]}\n", style="dim white")
 
@@ -157,8 +258,9 @@ def render_agent_report(report, expanded: bool = False) -> Panel:
         analysis_short = report.analysis[:800]
         if len(report.analysis) > 800:
             analysis_short += "..."
-        # Nettoyer markdown
-        clean_analysis = analysis_short.replace("**", "").replace("*", "")
+        clean_analysis = translate_bullet_points(
+            analysis_short.replace("**", "").replace("*", "")
+        )
         content.append(clean_analysis, style="dim")
 
     return Panel(
@@ -179,23 +281,23 @@ def render_decision(decision) -> Panel:
         "AVOID":      "bold red",
         "SELL":       "red",
     }
-    rec_icons = {
-        "BUY":        "🟢 BUY",
-        "ACCUMULATE": "🟩 ACCUMULATE",
-        "HOLD":       "🟡 HOLD",
-        "AVOID":      "🔴 AVOID",
-        "SELL":       "🔴 SELL",
+    rec_icons_fr = {
+        "BUY":        "🟢 ACHETER",
+        "ACCUMULATE": "🟩 ACCUMULER",
+        "HOLD":       "🟡 CONSERVER",
+        "AVOID":      "🔴 ÉVITER",
+        "SELL":       "🔴 VENDRE",
     }
-    rec_color = rec_colors.get(rec, "white")
+    rec_color      = rec_colors.get(rec, "white")
     bare_rec_color = rec_color.replace("bold ", "")
 
-    conv = decision.conviction
-    conv_filled = int(conv / 100 * 30)
+    conv            = decision.conviction
+    conv_filled     = int(conv / 100 * 30)
     conv_bar_filled = "█" * conv_filled
     conv_bar_empty  = "░" * (30 - conv_filled)
 
     content = Text()
-    content.append(f"  {rec_icons.get(rec, rec)}\n", style=rec_color)
+    content.append(f"  {rec_icons_fr.get(rec, translate(rec))}\n", style=rec_color)
     content.append("  Conviction : ", style="dim")
     content.append(f"{conv}% ", style="bold white")
     content.append("[", style="dim")
@@ -210,27 +312,27 @@ def render_decision(decision) -> Panel:
     if decision.stop_loss:
         content.append(f"  Stop-Loss  : {decision.stop_loss:,.4f}\n", style="red")
     if decision.target_price:
-        ep = decision.entry_price or 0
-        sl = decision.stop_loss or 0
+        ep   = decision.entry_price or 0
+        sl   = decision.stop_loss or 0
         risk = abs(ep - sl)
-        rr = (decision.target_price - ep) / max(risk, 0.001)
+        rr   = (decision.target_price - ep) / max(risk, 0.001)
         content.append(f"  Objectif   : {decision.target_price:,.4f} (R/R ≈ {rr:.1f}x)\n", style="green")
 
     content.append(f"  Taille pos.: {decision.position_size_pct:.1f}% du portefeuille\n\n")
 
     content.append("  Synthèse :\n", style="bold")
-    synthesis = decision.synthesis.replace("**", "").replace("*", "")
+    synthesis = translate(decision.synthesis.replace("**", "").replace("*", ""))
     content.append(f"  {synthesis}\n\n", style="italic dim white")
 
     if decision.catalysts:
         content.append("  Catalyseurs :\n", style="bold green")
         for c in decision.catalysts:
-            content.append(f"    + {c}\n", style="green")
+            content.append(f"    + {translate(c)}\n", style="green")
 
     if decision.risks:
         content.append("\n  Risques :\n", style="bold red")
         for r in decision.risks:
-            content.append(f"    - {r}\n", style="red")
+            content.append(f"    - {translate(r)}\n", style="red")
 
     content.append("\n  Scores agents :\n", style="bold dim")
     for agent, scores in decision.agent_scores.items():
@@ -298,3 +400,107 @@ def save_analysis(asset: str, decision, reports: dict, snapshot):
         json.dump(data, f, ensure_ascii=False, indent=2, default=str)
 
     return filepath
+
+
+# ─────────────────────────────────────────────
+# VUE PORTEFEUILLE MULTI-ACTIFS
+# ─────────────────────────────────────────────
+
+def render_portfolio_table(results) -> Panel:
+    """
+    Tableau récapitulatif du portefeuille multi-actifs.
+    Colonnes : Ticker | Prix | 24h | Action APEX | Conv | F | M | T | S | Stop | Objectif | Taille
+    """
+    table = Table(
+        box=box.SIMPLE_HEAD,
+        show_header=True,
+        header_style="bold white",
+        border_style="bright_black",
+        expand=True,
+    )
+
+    table.add_column("Ticker",    style="bold cyan",  width=8,  no_wrap=True)
+    table.add_column("Prix",      style="white",       width=12, justify="right")
+    table.add_column("24h",       style="white",       width=8,  justify="right")
+    table.add_column("APEX",      style="bold yellow", width=12, no_wrap=True)
+    table.add_column("Conv.",     style="white",       width=6,  justify="center")
+    table.add_column("Fund.",     style="cyan",        width=6,  justify="center")
+    table.add_column("Macro",     style="blue",        width=6,  justify="center")
+    table.add_column("Tech.",     style="green",       width=6,  justify="center")
+    table.add_column("Sent.",     style="red",         width=6,  justify="center")
+    table.add_column("Stop-Loss", style="red",         width=10, justify="right")
+    table.add_column("Objectif",  style="green",       width=10, justify="right")
+    table.add_column("Taille%",   style="yellow",      width=8,  justify="center")
+
+    # Couleur de l'action APEX
+    action_colors = {
+        "ACHAT":        "bold green",
+        "ACHETER":      "bold green",
+        "ACCUMULER":    "bold green",
+        "CONSERVER":    "bold yellow",
+        "HOLD":         "bold yellow",
+        "ALLÉGER":      "bold red",
+        "VENDRE":       "bold red",
+        "ÉVITER":       "bold red",
+    }
+
+    for r in results:
+        if r.error:
+            table.add_row(
+                r.ticker, "—", "—",
+                f"[red]ERREUR[/red]", "—", "—", "—", "—", "—", "—", "—", "—",
+            )
+            continue
+
+        # 24h style
+        ch24 = f"{r.change_24h:+.2f}%"
+        ch24_style = "green" if r.change_24h >= 0 else "red"
+
+        # Action
+        action_style = action_colors.get(r.apex_action.upper(), "white")
+
+        def score_cell(s: int) -> str:
+            style = "green" if s > 10 else ("red" if s < -10 else "yellow")
+            return f"[{style}]{s:+d}[/{style}]"
+
+        stop  = f"{r.stop_loss:,.2f}"  if r.stop_loss  else "—"
+        tgt   = f"{r.target:,.2f}"     if r.target     else "—"
+        size  = f"{r.position_size:.1f}%" if r.position_size else "—"
+        conv  = f"{r.conviction}%"
+
+        table.add_row(
+            r.ticker,
+            f"{r.price:,.2f}",
+            f"[{ch24_style}]{ch24}[/{ch24_style}]",
+            f"[{action_style}]{r.apex_action}[/{action_style}]",
+            conv,
+            score_cell(r.score_fundamentum),
+            score_cell(r.score_macro),
+            score_cell(r.score_technicus),
+            score_cell(r.score_sentinel),
+            stop, tgt, size,
+        )
+
+    # Légende
+    legend = Text("\n  Fund. = Fondamentaux | Macro = Macro | Tech. = Technique | Sent. = Risques", style="dim")
+
+    content = Text()
+    content.append_text(Text.from_markup(table.__str__()))
+    content.append_text(legend)
+
+    return Panel(
+        table,
+        title="[bold yellow]📊 PORTEFEUILLE — Vue Synthèse[/bold yellow]",
+        subtitle=legend.plain,
+        border_style="yellow",
+        padding=(0, 1),
+    )
+
+
+def prompt_portfolio_tickers() -> list[str]:
+    """Invite l'utilisateur à saisir une liste de tickers."""
+    console.print("\n[bold cyan]Mode Portefeuille[/bold cyan] — Entrez les tickers séparés par des virgules")
+    console.print("[dim]Exemple : NVDA, ASML, TSMC, BTC, ETH[/dim]\n")
+    raw = Prompt.ask("[bold yellow]Tickers[/bold yellow]", default="NVDA, ASML, TSMC")
+    tickers = [t.strip().upper() for t in raw.split(",") if t.strip()]
+    return tickers
