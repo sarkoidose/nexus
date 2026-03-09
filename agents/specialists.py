@@ -185,7 +185,7 @@ Perform an exhaustive risk analysis in the style of Nassim Taleb:
 - Events or price levels that would completely invalidate the bullish thesis
 - Critical price levels to monitor
 
-Use bullet points starting with "-". Be quantitative.
+Use bullet points starting with "-". Be quantitative. Do not use LaTeX or mathematical notation — write all formulas and values in plain text (e.g. "sigma = 4.4%" not "$\sigma = 4.4\%$").
 End with: "Niveau de risque: faible / modéré / élevé / extrême" and "Score: [number between -100 and +100]".{_LANG}"""
 
         try:
