@@ -28,95 +28,81 @@ console = Console()
 # COUCHE DE TRADUCTION  (anglais LLM → français TUI)
 # ─────────────────────────────────────────────
 
+# Règle : uniquement des termes suffisamment longs ou spécifiques
+# pour ne pas créer de collisions dans un texte anglais courant.
+# Éviter : "low", "high", "buy", "sell", "hold", "target", "entry", "support"
 _TRANSLATIONS: dict[str, str] = {
-    # Biais directionnels
-    "bullish":          "haussier",
-    "bearish":          "baissier",
-    "neutral":          "neutre",
-    "strongly bullish": "fortement haussier",
-    "strongly bearish": "fortement baissier",
-    "mildly bullish":   "légèrement haussier",
-    "mildly bearish":   "légèrement baissier",
-    # Niveaux de risque
-    "low":      "faible",
-    "moderate": "modéré",
-    "high":     "élevé",
-    "extreme":  "extrême",
-    "risk level: low":      "Niveau de risque : faible",
-    "risk level: moderate": "Niveau de risque : modéré",
-    "risk level: high":     "Niveau de risque : élevé",
-    "risk level: extreme":  "Niveau de risque : extrême",
-    # Actions APEX
-    "buy":               "Acheter",
-    "strong buy":        "Achat fort",
-    "accumulate":        "Accumuler",
-    "hold":              "Conserver",
-    "reduce":            "Alléger",
-    "sell":              "Vendre",
-    "strong sell":       "Vente forte",
-    "avoid":             "Éviter",
-    # Termes techniques courants
+    # Biais directionnels (expressions longues d'abord)
+    "strongly bullish":  "fortement haussier",
+    "strongly bearish":  "fortement baissier",
+    "mildly bullish":    "légèrement haussier",
+    "mildly bearish":    "légèrement baissier",
+    "bullish":           "haussier",
+    "bearish":           "baissier",
+    "neutral":           "neutre",
+    # Niveaux de risque (expressions complètes)
+    "risk level: extreme": "niveau de risque : extrême",
+    "risk level: high":    "niveau de risque : élevé",
+    "risk level: moderate":"niveau de risque : modéré",
+    "risk level: low":     "niveau de risque : faible",
+    "extreme risk":        "risque extrême",
+    # Actions APEX (mots composés ou assez longs)
+    "strong buy":        "achat fort",
+    "strong sell":       "vente forte",
+    "accumulate":        "accumuler",
+    "avoid":             "éviter",
+    # Technique (termes suffisamment spécifiques)
     "overbought":        "suracheté",
     "oversold":          "survendu",
     "uptrend":           "tendance haussière",
     "downtrend":         "tendance baissière",
-    "support":           "support",
-    "resistance":        "résistance",
     "golden cross":      "golden cross",
     "death cross":       "death cross",
     "breakout":          "cassure haussière",
     "breakdown":         "cassure baissière",
     "risk/reward":       "risque/rendement",
-    "stop-loss":         "stop-loss",
-    "target":            "objectif",
-    "entry":             "entrée",
-    # Macro
-    "soft landing":      "atterrissage en douceur",
-    "hard landing":      "atterrissage brutal",
-    "stagflation":       "stagflation",
-    "recession":         "récession",
-    "expansion":         "expansion",
-    "rate cut":          "baisse de taux",
-    "rate hike":         "hausse de taux",
-    "tightening":        "resserrement monétaire",
-    "easing":            "assouplissement monétaire",
-    "risk-on":           "risk-on",
-    "risk-off":          "risk-off",
     # Fondamentaux
     "undervalued":       "sous-évalué",
     "overvalued":        "surévalué",
     "fair value":        "juste valeur",
     "free cash flow":    "flux de trésorerie libre",
     "earnings":          "bénéfices",
-    "revenue":           "chiffre d'affaires",
-    "guidance":          "perspectives",
-    "moat":              "avantage compétitif",
     "buyback":           "rachat d'actions",
+    # Macro
+    "soft landing":      "atterrissage en douceur",
+    "hard landing":      "atterrissage brutal",
+    "stagflation":       "stagflation",
+    "recession":         "récession",
+    "rate cut":          "baisse de taux",
+    "rate hike":         "hausse de taux",
+    "tightening":        "resserrement monétaire",
+    "easing":            "assouplissement monétaire",
+    "risk-on":           "risk-on",
+    "risk-off":          "risk-off",
     # Crypto
-    "staking":           "staking",
     "tokenomics":        "tokenomique",
-    "liquidity":         "liquidité",
 }
+
+import re as _re
+# Pré-compiler les patterns une seule fois au chargement du module
+_COMPILED = [
+    (_re.compile(r'\b' + _re.escape(en) + r'\b', _re.IGNORECASE), fr)
+    for en, fr in sorted(_TRANSLATIONS.items(), key=lambda x: -len(x[0]))
+]
 
 def translate(text: str) -> str:
     """
-    Traduit un texte anglais en français pour affichage TUI.
-    Remplace les termes connus mot à mot (insensible à la casse).
-    Préserve la ponctuation et la capitalisation de début de phrase.
+    Traduit les termes financiers anglais en français pour affichage TUI.
+    - Word boundaries (\b) : évite "high" dans "higher", "low" dans "below"
+    - Expressions longues matchées en premier (pré-triées)
+    - Capitalisation préservée si le mot original commence par une majuscule
     """
     if not text:
         return text
     result = text
-    # Trier par longueur décroissante pour éviter les remplacements partiels
-    for en, fr in sorted(_TRANSLATIONS.items(), key=lambda x: -len(x[0])):
-        # Remplacement insensible à la casse
-        import re
-        pattern = re.compile(re.escape(en), re.IGNORECASE)
-        def _replace(m):
-            original = m.group(0)
-            if original[0].isupper():
-                return fr.capitalize()
-            return fr
+    for pattern, fr in _COMPILED:
+        def _replace(m, _fr=fr):
+            return _fr.capitalize() if m.group(0)[0].isupper() else _fr
         result = pattern.sub(_replace, result)
     return result
 

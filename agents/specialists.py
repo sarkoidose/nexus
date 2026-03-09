@@ -1,7 +1,7 @@
 """
 NEXUS - Specialized Agents
 FUNDAMENTUM | MACRO | TECHNICUS | SENTINEL
-100% English prompts — translation happens in the TUI layer.
+Reasoning in English, output in French.
 """
 
 import sys
@@ -12,6 +12,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from core.base_agent import BaseAgent, AgentReport
 from config.settings import AGENTS
 
+_LANG = (
+    "\nReason and think in English internally. "
+    "Write your entire final response in French, including all bullet points, headers, labels, and conclusions."
+)
 
 def _err(agent, e):
     return AgentReport(
@@ -43,7 +47,7 @@ Perform a deep fundamental analysis for this CRYPTO asset:
 - Directional score from -100 (very bearish) to +100 (very bullish)
 
 Use bullet points starting with "-". Be quantitative.
-End with: "Bias: bullish / bearish / neutral" and "Score: [number]"."""
+End with: "Biais: haussier / baissier / neutre" and "Score: [number]".{_LANG}"""
         else:
             prompt = f"""{snapshot_summary}
 
@@ -57,7 +61,7 @@ Perform a deep fundamental analysis:
 - Analyst consensus: alignment or divergence with fundamental picture
 
 Use bullet points starting with "-". Be quantitative and precise.
-End with: "Bias: bullish / bearish / neutral" and "Score: [number between -100 and +100]"."""
+End with: "Biais: haussier / baissier / neutre" and "Score: [number between -100 and +100]".{_LANG}"""
 
         try:
             text = self._llm_call(prompt)
@@ -96,8 +100,8 @@ Perform a macroeconomic and geopolitical analysis:
 - Catalysts (favorable and unfavorable) over 3 to 12 months
 
 Use bullet points starting with "-".
-Distinguish short term (1–3 months) vs medium term (6–12 months).
-End with: "Bias: bullish / bearish / neutral" and "Score: [number between -100 and +100]"."""
+Distinguish court terme (1–3 mois) vs moyen terme (6–12 mois).
+End with: "Biais: haussier / baissier / neutre" and "Score: [number between -100 and +100]".{_LANG}"""
 
         try:
             text = self._llm_call(prompt)
@@ -131,7 +135,7 @@ Perform a complete technical analysis on the daily timeframe:
   * Risk/reward ratio
 
 Use bullet points starting with "-". Use exact price levels.
-End with: "Bias: bullish / bearish / neutral" and "Score: [number between -100 and +100]"."""
+End with: "Biais: haussier / baissier / neutre" and "Score: [number between -100 and +100]".{_LANG}"""
 
         try:
             text = self._llm_call(prompt)
@@ -161,28 +165,28 @@ Current price: {price}
 
 Perform an exhaustive risk analysis in the style of Nassim Taleb:
 
-1. QUANTIFIABLE RISKS
+1. RISQUES QUANTIFIABLES
 - Daily VaR at 95% and 99% confidence (estimate from annualized volatility)
 - Maximum probable drawdown: realistic worst-case scenario with historical precedent
 - Estimated beta vs global equity market (S&P 500)
-- Correlation with BTC, S&P 500, gold — and implications for portfolio diversification
+- Correlation with BTC, S&P 500, gold — portfolio diversification implications
 
-2. TAIL RISKS (BLACK SWANS)
+2. RISQUES DE QUEUE (BLACK SWANS)
 - Low-probability / high-impact negative events specific to this asset
 - Hidden systemic fragilities not reflected in current price
 - Unfavorable asymmetries: scenarios where downside >> upside
 
-3. POSITION SIZING
+3. DIMENSIONNEMENT DE POSITION
 - Optimal allocation (% of portfolio) using partial Kelly criterion (25% fraction)
 - For a 10,000€ portfolio: maximum recommended position size in euros
-- Psychological stop-loss vs hard technical stop-loss — distinction and rationale
+- Psychological stop-loss vs hard technical stop-loss
 
-4. INVALIDATION CONDITIONS
-- What events or price levels would completely invalidate the bullish thesis?
-- Critical price levels to monitor as invalidation triggers
+4. CONDITIONS D'INVALIDATION
+- Events or price levels that would completely invalidate the bullish thesis
+- Critical price levels to monitor
 
 Use bullet points starting with "-". Be quantitative.
-End with: "Risk level: low / moderate / high / extreme" and "Score: [number between -100 and +100]"."""
+End with: "Niveau de risque: faible / modéré / élevé / extrême" and "Score: [number between -100 and +100]".{_LANG}"""
 
         try:
             text = self._llm_call(prompt)
