@@ -241,14 +241,27 @@ class BaseAgent(ABC):
         # Confiance dynamique
         confidence = self._compute_confidence(analysis_text, context or {})
 
-        # Points clés
+        # Points clés — on filtre les headers de section (trop courts ou sans verbe/chiffre)
         key_points = []
         for line in analysis_text.split("\n"):
             line = line.strip()
-            if line.startswith(("-", "•", "*", "→")) and len(line) > 5:
-                key_points.append(line.lstrip("-•*→ "))
+            if not line.startswith(("-", "•", "*")):
+                continue
+            content = line.lstrip("-•* ").strip()
+            # Rejeter : trop court (< 40 chars) ou sans ponctuation interne (= header nu)
+            if len(content) < 40:
+                continue
+            # Rejeter les lignes qui sont juste un titre sans contenu (pas de ":", chiffre ou verbe conjugué)
+            has_detail = any(c in content for c in (":", "%", "$", ".", ",")) or any(
+                w in content.lower() for w in ("est ", "sont ", "indique", "suggère", "montre",
+                "représente", "se situe", "confirme", "affiche", "atteint", "reste", "offre")
+            )
+            if not has_detail:
+                continue
+            key_points.append(content)
         if not key_points:
-            sentences = [s.strip() for s in analysis_text.split(".") if len(s.strip()) > 20]
+            # Fallback : extraire les phrases substantielles de l'analyse
+            sentences = [s.strip() for s in analysis_text.split(".") if len(s.strip()) > 40]
             key_points = sentences[:3]
 
         return AgentReport(
