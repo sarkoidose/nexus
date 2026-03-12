@@ -2,6 +2,7 @@
 NEXUS - Classe de Base des Agents
 100% LOCAL — Backend Ollama uniquement
 """
+import re
 import httpx
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -180,6 +181,16 @@ class BaseAgent(ABC):
         return min(90, conf)
 
     # ─────────────────────────────────────────────
+    # PARSER SCORE EXPLICITE (fourni par le LLM)
+    # ─────────────────────────────────────────────
+    def _parse_explicit_score(self, text: str) -> Optional[int]:
+        """Lit le 'Score: NUMBER' que le LLM a explicitement produit dans sa réponse."""
+        match = re.search(r'Score\s*:\s*([+-]?\d+)', text, re.IGNORECASE)
+        if match:
+            return max(-100, min(100, int(match.group(1))))
+        return None
+
+    # ─────────────────────────────────────────────
     # PARSER SCORE TEXTUEL (pour FUNDAMENTUM/MACRO/SENTINEL)
     # ─────────────────────────────────────────────
     def _parse_score_from_text(self, text: str) -> tuple[int, int]:
@@ -234,9 +245,11 @@ class BaseAgent(ABC):
         # Score
         if use_technical_score and context:
             tech_score = self._compute_technical_score(context)
-            score = tech_score if tech_score is not None else self._parse_score_from_text(analysis_text)[0]
+            score = tech_score if tech_score is not None else (self._parse_explicit_score(analysis_text) or self._parse_score_from_text(analysis_text)[0])
         else:
-            score, _ = self._parse_score_from_text(analysis_text)
+            score = self._parse_explicit_score(analysis_text)
+            if score is None:
+                score, _ = self._parse_score_from_text(analysis_text)
 
         # Confiance dynamique
         confidence = self._compute_confidence(analysis_text, context or {})
