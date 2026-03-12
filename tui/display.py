@@ -483,10 +483,25 @@ def render_portfolio_table(results) -> Panel:
     )
 
 
+def _load_portfolio_file() -> list[str]:
+    """Charge les tickers depuis portfolio.json s'il existe."""
+    portfolio_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "portfolio.json")
+    try:
+        with open(portfolio_path) as f:
+            data = json.load(f)
+            return data.get("tickers", [])
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
 def prompt_portfolio_tickers() -> list[str]:
     """Invite l'utilisateur à saisir une liste de tickers."""
+    saved = _load_portfolio_file()
+    default = ", ".join(saved) if saved else "NVDA, ASML, TSMC"
+
     console.print("\n[bold cyan]Mode Portefeuille[/bold cyan] — Entrez les tickers séparés par des virgules")
-    console.print("[dim]Exemple : NVDA, ASML, TSMC, BTC, ETH[/dim]\n")
-    raw = Prompt.ask("[bold yellow]Tickers[/bold yellow]", default="NVDA, ASML, TSMC")
+    console.print("[dim]Exemple : NVDA, ASML, TSMC, BTC, ETH[/dim]")
+    if saved:
+        console.print(f"[dim]Portefeuille sauvegardé : {default}[/dim]\n")
+    raw = Prompt.ask("[bold yellow]Tickers[/bold yellow]", default=default)
     tickers = [t.strip().upper() for t in raw.split(",") if t.strip()]
     return tickers
