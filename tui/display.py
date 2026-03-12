@@ -363,7 +363,7 @@ def display_progress_analysis(asset: str) -> Progress:
 
 def save_analysis(asset: str, decision, reports: dict, snapshot):
     """Sauvegarde une analyse en JSON."""
-    output_dir = os.path.join(os.path.dirname(__file__), "..", "outputs")
+    output_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "outputs")
     os.makedirs(output_dir, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
