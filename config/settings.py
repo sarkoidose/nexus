@@ -15,7 +15,7 @@ import os
 OLLAMA_BASE_URL       = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 OLLAMA_MODEL_APEX     = "qwen3.5:35b-a3b"
 OLLAMA_MODEL_PRIMARY  = "qwen3.5:9b"
-OLLAMA_MODEL_FALLBACK = "qwen3.5:9b"
+OLLAMA_MODEL_FALLBACK = "qwen3.5:4b"
 
 # ─────────────────────────────────────────────
 # AGENT CONFIGS
