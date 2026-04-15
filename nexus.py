@@ -311,8 +311,8 @@ def view_history():
             style = "green" if rec in ("BUY","ACCUMULATE") else ("red" if rec in ("SELL","AVOID") else "yellow")
             ts = data.get("timestamp","")[:16].replace("T"," ")
             table.add_row(ts, data.get("asset","?"), f"[{style}]{rec}[/{style}]", f"{dec.get('conviction',0)}%")
-        except:
-            pass
+        except (OSError, json.JSONDecodeError, KeyError):
+            continue
     console.print(table)
 
 
@@ -336,29 +336,36 @@ def test_ollama():
 
 def main():
     splash_screen()
-    while True:
-        console.print()
-        console.print(render_main_menu())
-        choice = Prompt.ask(
-            "[bold]Commande[/bold]",
-            choices=["1","2","3","4","Q","q"],
-            default="1",
-        )
-        if choice == "1":
-            run_analysis_flow()
-        elif choice == "2":
-            run_portfolio_flow()
-        elif choice == "3":
+    try:
+        while True:
             console.print()
-            view_history()
-            Prompt.ask("[dim]Entrée pour continuer[/dim]", default="")
-        elif choice == "4":
-            test_ollama()
-        elif choice.upper() == "Q":
-            console.print()
-            console.print("[bold yellow]⚡ NEXUS — À bientôt.[/bold yellow]")
-            console.print()
-            sys.exit(0)
+            console.print(render_main_menu())
+            choice = Prompt.ask(
+                "[bold]Commande[/bold]",
+                choices=["1","2","3","4","Q","q"],
+                default="1",
+            )
+            if choice == "1":
+                run_analysis_flow()
+            elif choice == "2":
+                run_portfolio_flow()
+            elif choice == "3":
+                console.print()
+                view_history()
+                Prompt.ask("[dim]Entrée pour continuer[/dim]", default="")
+            elif choice == "4":
+                test_ollama()
+            elif choice.upper() == "Q":
+                console.print()
+                console.print("[bold yellow]⚡ NEXUS — À bientôt.[/bold yellow]")
+                console.print()
+                return
+    finally:
+        # Fermeture propre des pools HTTP partagés (agents + fetcher).
+        try:
+            orchestrator.close()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

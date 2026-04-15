@@ -8,6 +8,7 @@ import os
 from datetime import datetime
 from dataclasses import dataclass
 from typing import Optional
+import httpx
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -38,8 +39,8 @@ class NexusDecision:
 
 class ApexAgent(BaseAgent):
 
-    def __init__(self):
-        super().__init__(AGENTS["apex"])
+    def __init__(self, client: Optional[httpx.Client] = None):
+        super().__init__(AGENTS["apex"], client=client)
 
     def analyze(self, asset: str, context: dict) -> AgentReport:
         pass
@@ -60,11 +61,12 @@ class ApexAgent(BaseAgent):
                 reports_text += f"\n### {report.agent_name}\nERREUR: {report.error}\n"
                 continue
             kp = "\n".join(f"  - {k}" for k in report.key_points)
+            # On ne transmet plus le texte complet de l'analyse : seulement
+            # les points clés + score. Réduit le num_ctx APEX d'environ 40%.
             reports_text += (
                 f"\n### {report.agent_name} ({report.agent_role})\n"
                 f"Score: {report.score:+d}/100 | Confiance: {report.confidence}%\n"
                 f"Points clés:\n{kp}\n"
-                f"Analyse:\n{report.analysis[:400]}\n"
             )
             agent_scores[agent_name] = {"score": report.score, "confidence": report.confidence}
 

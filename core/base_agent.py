@@ -41,12 +41,26 @@ class AgentReport:
 
 class BaseAgent(ABC):
 
-    def __init__(self, config: AgentConfig):
+    def __init__(self, config: AgentConfig, client: Optional[httpx.Client] = None):
         self.config  = config
         self.name    = config.name
         self.role    = config.role
         self.emoji   = config.emoji
-        self._client = httpx.Client(timeout=600.0)
+        # Client HTTP : partagé si fourni (pool unique pour tous les agents),
+        # sinon créé localement avec un timeout raisonnable.
+        if client is None:
+            self._client = httpx.Client(timeout=300.0)
+            self._owns_client = True
+        else:
+            self._client = client
+            self._owns_client = False
+
+    def close(self):
+        if self._owns_client:
+            try:
+                self._client.close()
+            except Exception:
+                pass
 
     def _call_ollama(self, prompt: str, model: str = None) -> str:
         model = model or self.config.model or OLLAMA_MODEL_PRIMARY
@@ -292,8 +306,3 @@ class BaseAgent(ABC):
     def analyze(self, asset: str, context: dict) -> AgentReport:
         pass
 
-    def __del__(self):
-        try:
-            self._client.close()
-        except:
-            pass

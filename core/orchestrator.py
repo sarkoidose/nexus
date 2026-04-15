@@ -9,6 +9,9 @@ import os
 from datetime import datetime
 from typing import Optional
 from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import httpx
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -19,6 +22,12 @@ from data.fetcher import DataFetcher, MarketSnapshot
 from rich.console import Console
 
 console = Console()
+
+# Rapport vide réutilisable pour le fallback du mode portefeuille.
+_EMPTY_REPORT = AgentReport(
+    agent_name="", agent_role="", timestamp="",
+    analysis="", key_points=[], score=0, confidence=0,
+)
 
 
 @dataclass
@@ -48,12 +57,26 @@ class NexusOrchestrator:
     """Orchestrateur central de NEXUS."""
 
     def __init__(self):
-        self.fetcher     = DataFetcher()
-        self.fundamentum = FundamentumAgent()
-        self.macro       = MacroAgent()
-        self.technicus   = TechnicusAgent()
-        self.sentinel    = SentinelAgent()
-        self.apex        = ApexAgent()
+        # Deux pools HTTP partagés :
+        # - data_client : Yahoo / CoinGecko / RSS (timeout court, 30 s)
+        # - llm_client  : Ollama local (timeout long, réponses LLM)
+        self._data_client = httpx.Client(timeout=30.0, follow_redirects=True)
+        self._llm_client  = httpx.Client(timeout=300.0)
+
+        self.fetcher     = DataFetcher(client=self._data_client)
+        self.fundamentum = FundamentumAgent(client=self._llm_client)
+        self.macro       = MacroAgent(client=self._llm_client)
+        self.technicus   = TechnicusAgent(client=self._llm_client)
+        self.sentinel    = SentinelAgent(client=self._llm_client)
+        self.apex        = ApexAgent(client=self._llm_client)
+
+    def close(self):
+        """Ferme proprement les pools HTTP partagés."""
+        for client in (self._data_client, self._llm_client):
+            try:
+                client.close()
+            except Exception:
+                pass
 
     # ─────────────────────────────────────────────
     # ANALYSE UNIQUE
@@ -83,26 +106,42 @@ class NexusOrchestrator:
         else:
             context = {"asset": asset, "asset_class": asset_class, "snapshot_summary": snapshot_summary}
 
-        # 2. Agents séquentiels
+        # 2. Agents en parallèle (4 threads, Ollama doit accepter la concurrence)
         reports: dict[str, AgentReport] = {}
         agent_tasks = [
-            ("fundamentum", self.fundamentum, "📊 FUNDAMENTUM — Fondamentaux",   20),
-            ("macro",       self.macro,       "🌍 MACRO — Macroéconomie",         38),
-            ("technicus",   self.technicus,   "📈 TECHNICUS — Analyse technique", 56),
-            ("sentinel",    self.sentinel,    "🛡️ SENTINEL — Gestion des risques", 74),
+            ("fundamentum", self.fundamentum),
+            ("macro",       self.macro),
+            ("technicus",   self.technicus),
+            ("sentinel",    self.sentinel),
         ]
 
-        for name, agent, label, pct in agent_tasks:
-            if progress_callback:
-                progress_callback(label, pct)
+        if progress_callback:
+            progress_callback("⚙️ Agents spécialisés en parallèle...", 20)
+
+        def _run(name, agent):
             try:
-                reports[name] = agent.analyze(asset, context)
+                return name, agent.analyze(asset, context), None
             except Exception as e:
-                reports[name] = AgentReport(
-                    agent_name=agent.name, agent_role=agent.role,
-                    timestamp=datetime.now().isoformat(),
-                    analysis="", key_points=[], score=0, confidence=0, error=str(e),
-                )
+                return name, None, e
+
+        with ThreadPoolExecutor(max_workers=len(agent_tasks)) as executor:
+            futures = [executor.submit(_run, name, agent) for name, agent in agent_tasks]
+            done = 0
+            for fut in as_completed(futures):
+                name, report, err = fut.result()
+                done += 1
+                pct = 20 + int((done / len(agent_tasks)) * 60)  # 20→80
+                if err is not None:
+                    agent = dict(agent_tasks)[name]
+                    reports[name] = AgentReport(
+                        agent_name=agent.name, agent_role=agent.role,
+                        timestamp=datetime.now().isoformat(),
+                        analysis="", key_points=[], score=0, confidence=0, error=str(err),
+                    )
+                else:
+                    reports[name] = report
+                if progress_callback:
+                    progress_callback(f"✓ {name.upper()} terminé ({done}/{len(agent_tasks)})", pct)
 
         # 3. Synthèse APEX
         if progress_callback:
@@ -160,18 +199,18 @@ class NexusOrchestrator:
                 target       = decision.target_price if decision else None
                 position_sz  = decision.position_size if decision else None
 
+                f = reports.get("fundamentum", _EMPTY_REPORT)
+                m = reports.get("macro",       _EMPTY_REPORT)
+                t = reports.get("technicus",   _EMPTY_REPORT)
+                s = reports.get("sentinel",    _EMPTY_REPORT)
                 results.append(PortfolioResult(
                     ticker=ticker, name=name,
                     price=price, change_24h=change_24h,
                     apex_action=apex_action, conviction=conviction,
-                    score_fundamentum=reports.get("fundamentum", AgentReport("","","","",[], 0,0)).score,
-                    score_macro=reports.get("macro",       AgentReport("","","","",[], 0,0)).score,
-                    score_technicus=reports.get("technicus",  AgentReport("","","","",[], 0,0)).score,
-                    score_sentinel=reports.get("sentinel",   AgentReport("","","","",[], 0,0)).score,
-                    conf_fundamentum=reports.get("fundamentum", AgentReport("","","","",[], 0,0)).confidence,
-                    conf_macro=reports.get("macro",       AgentReport("","","","",[], 0,0)).confidence,
-                    conf_technicus=reports.get("technicus",  AgentReport("","","","",[], 0,0)).confidence,
-                    conf_sentinel=reports.get("sentinel",   AgentReport("","","","",[], 0,0)).confidence,
+                    score_fundamentum=f.score, score_macro=m.score,
+                    score_technicus=t.score,   score_sentinel=s.score,
+                    conf_fundamentum=f.confidence, conf_macro=m.confidence,
+                    conf_technicus=t.confidence,   conf_sentinel=s.confidence,
                     stop_loss=stop_loss, target=target, position_size=position_sz,
                 ))
 
@@ -193,14 +232,12 @@ class NexusOrchestrator:
     # UTILITAIRES
     # ─────────────────────────────────────────────
     def check_ollama(self) -> tuple[bool, list[str]]:
-        import httpx
         from config.settings import OLLAMA_BASE_URL
         try:
-            client = httpx.Client(timeout=5.0)
-            resp   = client.get(f"{OLLAMA_BASE_URL}/api/tags")
-            resp.raise_for_status()
-            models = [m["name"] for m in resp.json().get("models", [])]
-            client.close()
+            with httpx.Client(timeout=5.0) as client:
+                resp = client.get(f"{OLLAMA_BASE_URL}/api/tags")
+                resp.raise_for_status()
+                models = [m["name"] for m in resp.json().get("models", [])]
             return True, models
         except Exception:
             return False, []

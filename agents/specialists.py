@@ -7,6 +7,8 @@ Reasoning in English, output in French.
 import sys
 import os
 from datetime import datetime
+from typing import Optional
+import httpx
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from core.base_agent import BaseAgent, AgentReport
@@ -27,8 +29,8 @@ def _err(agent, e):
 
 class FundamentumAgent(BaseAgent):
 
-    def __init__(self):
-        super().__init__(AGENTS["fundamentum"])
+    def __init__(self, client: Optional[httpx.Client] = None):
+        super().__init__(AGENTS["fundamentum"], client=client)
 
     def analyze(self, asset: str, context: dict) -> AgentReport:
         snapshot_summary = context.get("snapshot_summary", f"Asset: {asset}")
@@ -72,8 +74,8 @@ End with: "Biais: haussier / baissier / neutre" and "Score: [number between -100
 
 class MacroAgent(BaseAgent):
 
-    def __init__(self):
-        super().__init__(AGENTS["macro"])
+    def __init__(self, client: Optional[httpx.Client] = None):
+        super().__init__(AGENTS["macro"], client=client)
 
     def analyze(self, asset: str, context: dict) -> AgentReport:
         snapshot_summary = context.get("snapshot_summary", f"Asset: {asset}")
@@ -112,8 +114,8 @@ End with: "Biais: haussier / baissier / neutre" and "Score: [number between -100
 
 class TechnicusAgent(BaseAgent):
 
-    def __init__(self):
-        super().__init__(AGENTS["technicus"])
+    def __init__(self, client: Optional[httpx.Client] = None):
+        super().__init__(AGENTS["technicus"], client=client)
 
     def analyze(self, asset: str, context: dict) -> AgentReport:
         snapshot_summary = context.get("snapshot_summary", f"Asset: {asset}")
@@ -149,8 +151,8 @@ End with: "Biais: haussier / baissier / neutre" and "Score: [number between -100
 
 class SentinelAgent(BaseAgent):
 
-    def __init__(self):
-        super().__init__(AGENTS["sentinel"])
+    def __init__(self, client: Optional[httpx.Client] = None):
+        super().__init__(AGENTS["sentinel"], client=client)
 
     def analyze(self, asset: str, context: dict) -> AgentReport:
         snapshot_summary = context.get("snapshot_summary", f"Asset: {asset}")
@@ -185,7 +187,7 @@ Perform an exhaustive risk analysis in the style of Nassim Taleb:
 - Events or price levels that would completely invalidate the bullish thesis
 - Critical price levels to monitor
 
-Use bullet points starting with "-". Be quantitative. Do not use LaTeX or mathematical notation — write all formulas and values in plain text (e.g. "sigma = 4.4%" not "$\sigma = 4.4\%$").
+Use bullet points starting with "-". Be quantitative. Do not use LaTeX or mathematical notation — write all formulas and values in plain text (e.g. "sigma = 4.4%" not "$\\sigma = 4.4\\%$").
 End with: "Niveau de risque: faible / modéré / élevé / extrême" and "Score: [number between -100 and +100]".{_LANG}"""
 
         try:
